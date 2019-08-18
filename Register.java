@@ -16,35 +16,38 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import com.firebase.client.Firebase;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class MainActivity extends AppCompatActivity {
+public class Register extends AppCompatActivity {
 
-    TextView register;
     EditText username, password;
-    Button loginButton;
+    Button registerButton;
     String user, pass;
+    TextView login;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_register);
 
-        register = (TextView)findViewById(R.id.register);
         username = (EditText)findViewById(R.id.username);
         password = (EditText)findViewById(R.id.password);
-        loginButton = (Button)findViewById(R.id.loginButton);
+        registerButton = (Button)findViewById(R.id.registerButton);
+        login = (TextView)findViewById(R.id.login);
 
-        register.setOnClickListener(new View.OnClickListener() {
+        Firebase.setAndroidContext(this);
+
+        login.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivity(new Intent(MainActivity.this, Register.class));
+                startActivity(new Intent(Register.this, MainActivity.class));
             }
         });
 
-        loginButton.setOnClickListener(new View.OnClickListener() {
+        registerButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 user = username.getText().toString();
@@ -56,33 +59,42 @@ public class MainActivity extends AppCompatActivity {
                 else if(pass.equals("")){
                     password.setError("can't be blank");
                 }
-                else{
-                    String url = "https://fly-chat-c09d0.firebaseio.com//users.json";
-                    final ProgressDialog pd = new ProgressDialog(MainActivity.this);
+                else if(!user.matches("[A-Za-z0-9]+")){
+                    username.setError("only alphabet or number allowed");
+                }
+                else if(user.length()<5){
+                    username.setError("at least 5 characters long");
+                }
+                else if(pass.length()<5){
+                    password.setError("at least 5 characters long");
+                }
+                else {
+                    final ProgressDialog pd = new ProgressDialog(Register.this);
                     pd.setMessage("Loading...");
                     pd.show();
+
+                    String url = "https://fly-chat-c09d0.firebaseio.com/users.json";
 
                     StringRequest request = new StringRequest(Request.Method.GET, url, new Response.Listener<String>(){
                         @Override
                         public void onResponse(String s) {
-                            if(s.equals("null")){
-                                Toast.makeText(MainActivity.this, "user not found", Toast.LENGTH_LONG).show();
+                            Firebase reference = new Firebase("https://fly-chat-c09d0.firebaseio.com/users");
+
+                            if(s.equals("null")) {
+                                reference.child(user).child("password").setValue(pass);
+                                Toast.makeText(Register.this, "registration successful", Toast.LENGTH_LONG).show();
                             }
-                            else{
+                            else {
                                 try {
                                     JSONObject obj = new JSONObject(s);
 
-                                    if(!obj.has(user)){
-                                        Toast.makeText(MainActivity.this, "user not found", Toast.LENGTH_LONG).show();
+                                    if (!obj.has(user)) {
+                                        reference.child(user).child("password").setValue(pass);
+                                        Toast.makeText(Register.this, "registration successful", Toast.LENGTH_LONG).show();
+                                    } else {
+                                        Toast.makeText(Register.this, "username already exists", Toast.LENGTH_LONG).show();
                                     }
-                                    else if(obj.getJSONObject(user).getString("password").equals(pass)){
-                                        UserDetails.username = user;
-                                        UserDetails.password = pass;
-                                        startActivity(new Intent(MainActivity.this, Users.class));
-                                    }
-                                    else {
-                                        Toast.makeText(MainActivity.this, "incorrect password", Toast.LENGTH_LONG).show();
-                                    }
+
                                 } catch (JSONException e) {
                                     e.printStackTrace();
                                 }
@@ -90,19 +102,20 @@ public class MainActivity extends AppCompatActivity {
 
                             pd.dismiss();
                         }
+
                     },new Response.ErrorListener(){
                         @Override
                         public void onErrorResponse(VolleyError volleyError) {
-                            System.out.println("" + volleyError);
+                            System.out.println("" + volleyError );
                             pd.dismiss();
                         }
                     });
 
-                    RequestQueue rQueue = Volley.newRequestQueue(MainActivity.this);
+                    RequestQueue rQueue = Volley.newRequestQueue(Register.this);
                     rQueue.add(request);
                 }
-
             }
         });
     }
 }
+
